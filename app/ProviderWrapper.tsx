@@ -1,44 +1,51 @@
-'use client';
-import { Provider, useSelector } from 'react-redux';
-import { store, RootState } from './store';
-import { useRouter, usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
+"use client";
 
+import React, { useEffect, useState } from "react";
+import { Provider, useSelector } from "react-redux";
+import { usePathname, useRouter } from "next/navigation";
+import { store } from "./store"; 
+import { RootState } from "./store";
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useSelector((state: RootState) => state.auth);
   const router = useRouter();
   const pathname = usePathname();
-  const [isMounted, setIsMounted] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
-  // 1. Prevent "Hydration" errors and freezing
+  // Define which routes are "Public" (accessible before login)
+  const publicRoutes = ["/", "/login", "/about", "/contact"];
+
   useEffect(() => {
-    setIsMounted(true);
+    setMounted(true);
   }, []);
 
-  // 2. Stable Redirect Logic
   useEffect(() => {
-    if (isMounted) {
-      if (!isAuthenticated && pathname !== '/login') {
-        router.push('/login');
-      } 
-      else if (isAuthenticated && pathname === '/login') {
-        router.push('/');
+    if (mounted) {
+      // If user is NOT logged in AND trying to access a PRIVATE page
+      if (!isAuthenticated && !publicRoutes.includes(pathname)) {
+        router.push("/login");
+      }
+      
+      // Optional: Redirect away from login if already authenticated
+      if (isAuthenticated && pathname === "/login") {
+        router.push("/blog"); // Or wherever your dashboard is
       }
     }
-  }, [isAuthenticated, pathname, router, isMounted]);
+  }, [isAuthenticated, pathname, router, mounted]);
 
-  // 3. If the app is still "thinking", show nothing to prevent freezing the UI
-  if (!isMounted) return null;
+  // Prevent hydration mismatch by not rendering until mounted
+  if (!mounted) return <div className="min-h-screen bg-white" />;
 
   return <>{children}</>;
 }
 
-export default function ProviderWrapper({ children }: { children: React.ReactNode }) {
+export default function ProviderWrapper({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <Provider store={store}>
-      <AuthGuard>
-        {children}
-      </AuthGuard>
+      <AuthGuard>{children}</AuthGuard>
     </Provider>
   );
 }
